@@ -8,7 +8,30 @@ namespace Milehigh.Core
     public class SceneDirector : MonoBehaviour
     {
         public List<GameObject> characterPrefabs; // Assign in Inspector
+
         public Transform characterSpawnRoot;
+
+        // BOLT: Cache for GameObject.Find to prevent redundant scene graph searches
+        private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
+
+        private GameObject GetCachedGameObject(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+
+            if (_objectCache.TryGetValue(name, out GameObject cachedObj))
+            {
+                if (cachedObj != null) return cachedObj;
+                _objectCache.Remove(name); // Clean up destroyed objects
+            }
+
+            GameObject foundObj = GameObject.Find(name);
+            if (foundObj != null)
+            {
+                _objectCache[name] = foundObj;
+            }
+            return foundObj;
+        }
+
 
         private void Start()
         {
@@ -37,7 +60,7 @@ namespace Milehigh.Core
 
         private void SpawnOrUpdateCharacter(CharacterProfile profile)
         {
-            GameObject characterObj = GameObject.Find(profile.name);
+            GameObject characterObj = GetCachedGameObject(profile.name);
             if (characterObj == null)
             {
                 // Try to find prefab
@@ -46,6 +69,7 @@ namespace Milehigh.Core
                 {
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+                    _objectCache[profile.name] = characterObj; // BOLT: Cache newly spawned object
                 }
             }
 
@@ -69,7 +93,7 @@ namespace Milehigh.Core
 
         private void ApplyInteraction(ObjectInteraction interaction)
         {
-            GameObject target = GameObject.Find(interaction.objectId);
+            GameObject target = GetCachedGameObject(interaction.objectId);
             if (target != null)
             {
                 Debug.Log($"Applying {interaction.action} to {interaction.objectId}");
