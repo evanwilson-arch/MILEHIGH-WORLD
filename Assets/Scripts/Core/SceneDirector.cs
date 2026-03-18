@@ -10,6 +10,8 @@ namespace Milehigh.Core
         public List<GameObject> characterPrefabs; // Assign in Inspector
         public Transform characterSpawnRoot;
 
+        private Dictionary<string, GameObject> _cachedObjects = new Dictionary<string, GameObject>();
+
         private void Start()
         {
             if (CampaignManager.Instance.currentCampaignData != null)
@@ -35,9 +37,26 @@ namespace Milehigh.Core
             }
         }
 
+        private GameObject FindCachedObject(string objectName)
+        {
+            // Unity's GameObject.Find is an expensive O(N) operation over all active objects.
+            // Caching it avoids redundant full scene graph traversals.
+            if (_cachedObjects.TryGetValue(objectName, out GameObject obj) && obj != null)
+            {
+                return obj;
+            }
+
+            obj = GameObject.Find(objectName);
+            if (obj != null)
+            {
+                _cachedObjects[objectName] = obj;
+            }
+            return obj;
+        }
+
         private void SpawnOrUpdateCharacter(CharacterProfile profile)
         {
-            GameObject characterObj = GameObject.Find(profile.name);
+            GameObject characterObj = FindCachedObject(profile.name);
             if (characterObj == null)
             {
                 // Try to find prefab
@@ -46,6 +65,7 @@ namespace Milehigh.Core
                 {
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+                    _cachedObjects[profile.name] = characterObj;
                 }
             }
 
@@ -69,7 +89,7 @@ namespace Milehigh.Core
 
         private void ApplyInteraction(ObjectInteraction interaction)
         {
-            GameObject target = GameObject.Find(interaction.objectId);
+            GameObject target = FindCachedObject(interaction.objectId);
             if (target != null)
             {
                 Debug.Log($"Applying {interaction.action} to {interaction.objectId}");
