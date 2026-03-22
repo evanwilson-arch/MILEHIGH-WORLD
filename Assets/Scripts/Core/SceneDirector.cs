@@ -8,8 +8,20 @@ namespace Milehigh.Core
     public class SceneDirector : MonoBehaviour
     {
         public List<GameObject> characterPrefabs; // Assign in Inspector
+
         public Transform characterSpawnRoot;
 
+        // BOLT: Cache for GameObject.Find to prevent redundant scene graph searches
+        private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
+
+        private GameObject GetCachedGameObject(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+
+            if (_objectCache.TryGetValue(name, out GameObject cachedObj))
+            {
+                if (cachedObj != null) return cachedObj;
+                _objectCache.Remove(name); // Clean up destroyed objects
         // Cache for faster GameObject lookups by name
         private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
         // Performance Optimization: Cache found objects to avoid O(n) GameObject.Find calls
@@ -69,6 +81,11 @@ namespace Milehigh.Core
             GameObject foundObj = GameObject.Find(name);
             if (foundObj != null)
             {
+                _objectCache[name] = foundObj;
+            }
+            return foundObj;
+        }
+
                 objectCache[name] = foundObj;
             }
             return foundObj;
@@ -203,6 +220,7 @@ namespace Milehigh.Core
                     _objectCache[profile.name] = characterObj;
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+                    _objectCache[profile.name] = characterObj; // BOLT: Cache newly spawned object
                     _objectCache[profile.name] = characterObj; // Cache the new object
                     _cachedObjects[profile.name] = characterObj;
                     _objectCache[profile.name] = characterObj; // ⚡ Bolt: add instantiated object to cache
