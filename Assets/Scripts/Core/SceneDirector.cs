@@ -12,6 +12,24 @@ namespace Milehigh.Core
 
         // Cache for GameObject references to prevent expensive GameObject.Find calls
         private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
+        // Cache to avoid O(N) GameObject.Find calls in loops
+        private Dictionary<string, GameObject> objectCache = new Dictionary<string, GameObject>();
+
+        private GameObject GetCachedGameObject(string name)
+        {
+            if (objectCache.TryGetValue(name, out GameObject obj))
+            {
+                // Check if obj is null (Unity handles destroyed objects evaluating to null)
+                if (obj != null) return obj;
+                objectCache.Remove(name);
+            }
+
+            GameObject foundObj = GameObject.Find(name);
+            if (foundObj != null)
+            {
+                objectCache[name] = foundObj;
+            }
+            return foundObj;
         // Cache to prevent expensive GameObject.Find calls in loops
         private Dictionary<string, GameObject> _gameObjectCache = new Dictionary<string, GameObject>();
 
@@ -41,6 +59,9 @@ namespace Milehigh.Core
         public void SetupScene(SceneScenario scenario)
         {
             Debug.Log($"Setting up scenario: {scenario.scenarioId}");
+
+            // Clear cache at start of setup to avoid stale references across scenes
+            objectCache.Clear();
 
             // Instantiate characters if not already in scene
             foreach (var charProfile in CampaignManager.Instance.currentCampaignData.characters)
@@ -89,6 +110,7 @@ namespace Milehigh.Core
 
                     // Add newly instantiated character to cache
                     _objectCache[profile.name] = characterObj;
+                    objectCache[profile.name] = characterObj; // Cache newly created object
                     // Cache the newly instantiated object
                     _gameObjectCache[profile.name] = characterObj;
                 }
