@@ -10,6 +10,9 @@ namespace Milehigh.Core
         public List<GameObject> characterPrefabs; // Assign in Inspector
         public Transform characterSpawnRoot;
 
+        // Cache for GameObject references to prevent expensive GameObject.Find calls
+        private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
+
         private void Start()
         {
             if (CampaignManager.Instance.currentCampaignData != null)
@@ -35,9 +38,28 @@ namespace Milehigh.Core
             }
         }
 
+        private GameObject GetCachedObject(string objectName)
+        {
+            if (string.IsNullOrEmpty(objectName)) return null;
+
+            // Check cache first; safely handle natively destroyed objects via Unity's overloaded == operator
+            if (_objectCache.TryGetValue(objectName, out GameObject obj) && obj != null)
+            {
+                return obj;
+            }
+
+            // Fallback to Find and cache the result
+            GameObject foundObj = GameObject.Find(objectName);
+            if (foundObj != null)
+            {
+                _objectCache[objectName] = foundObj;
+            }
+            return foundObj;
+        }
+
         private void SpawnOrUpdateCharacter(CharacterProfile profile)
         {
-            GameObject characterObj = GameObject.Find(profile.name);
+            GameObject characterObj = GetCachedObject(profile.name);
             if (characterObj == null)
             {
                 // Try to find prefab
@@ -46,6 +68,9 @@ namespace Milehigh.Core
                 {
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+
+                    // Add newly instantiated character to cache
+                    _objectCache[profile.name] = characterObj;
                 }
             }
 
@@ -69,7 +94,7 @@ namespace Milehigh.Core
 
         private void ApplyInteraction(ObjectInteraction interaction)
         {
-            GameObject target = GameObject.Find(interaction.objectId);
+            GameObject target = GetCachedObject(interaction.objectId);
             if (target != null)
             {
                 Debug.Log($"Applying {interaction.action} to {interaction.objectId}");
