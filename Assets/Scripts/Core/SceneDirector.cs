@@ -10,6 +10,20 @@ namespace Milehigh.Core
         public List<GameObject> characterPrefabs; // Assign in Inspector
         public Transform characterSpawnRoot;
 
+        // ⚡ Bolt Optimization: Cache GameObject.Find results to prevent O(N*M) lookups during scene setup
+        private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
+
+        private GameObject FindObjectCached(string objectName)
+        {
+            if (_objectCache.TryGetValue(objectName, out GameObject obj) && obj != null)
+            {
+                return obj;
+            }
+
+            obj = GameObject.Find(objectName);
+            if (obj != null)
+            {
+                _objectCache[objectName] = obj;
         // Cache to prevent expensive GameObject.Find calls in loops
         private Dictionary<string, GameObject> _objectCache = new Dictionary<string, GameObject>();
         // Cache for GameObject references to prevent expensive GameObject.Find calls
@@ -108,6 +122,7 @@ namespace Milehigh.Core
 
         private void SpawnOrUpdateCharacter(CharacterProfile profile)
         {
+            GameObject characterObj = FindObjectCached(profile.name);
             GameObject characterObj = FindCachedObject(profile.name);
             GameObject characterObj = GetCachedObject(profile.name);
             GameObject characterObj = GetCachedGameObject(profile.name);
@@ -119,6 +134,7 @@ namespace Milehigh.Core
                 {
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+                    _objectCache[profile.name] = characterObj; // Cache the newly instantiated object
                     _objectCache[profile.name] = characterObj; // Cache new instance
 
                     // Add newly instantiated character to cache
@@ -149,6 +165,7 @@ namespace Milehigh.Core
 
         private void ApplyInteraction(ObjectInteraction interaction)
         {
+            GameObject target = FindObjectCached(interaction.objectId);
             GameObject target = FindCachedObject(interaction.objectId);
             GameObject target = GetCachedObject(interaction.objectId);
             GameObject target = GetCachedGameObject(interaction.objectId);
