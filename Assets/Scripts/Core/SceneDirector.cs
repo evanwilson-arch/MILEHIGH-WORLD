@@ -10,6 +10,26 @@ namespace Milehigh.Core
         public List<GameObject> characterPrefabs; // Assign in Inspector
         public Transform characterSpawnRoot;
 
+        // Cache to avoid O(N) GameObject.Find calls in loops
+        private Dictionary<string, GameObject> objectCache = new Dictionary<string, GameObject>();
+
+        private GameObject GetCachedGameObject(string name)
+        {
+            if (objectCache.TryGetValue(name, out GameObject obj))
+            {
+                // Check if obj is null (Unity handles destroyed objects evaluating to null)
+                if (obj != null) return obj;
+                objectCache.Remove(name);
+            }
+
+            GameObject foundObj = GameObject.Find(name);
+            if (foundObj != null)
+            {
+                objectCache[name] = foundObj;
+            }
+            return foundObj;
+        }
+
         private void Start()
         {
             if (CampaignManager.Instance.currentCampaignData != null)
@@ -21,6 +41,9 @@ namespace Milehigh.Core
         public void SetupScene(SceneScenario scenario)
         {
             Debug.Log($"Setting up scenario: {scenario.scenarioId}");
+
+            // Clear cache at start of setup to avoid stale references across scenes
+            objectCache.Clear();
 
             // Instantiate characters if not already in scene
             foreach (var charProfile in CampaignManager.Instance.currentCampaignData.characters)
@@ -37,7 +60,7 @@ namespace Milehigh.Core
 
         private void SpawnOrUpdateCharacter(CharacterProfile profile)
         {
-            GameObject characterObj = GameObject.Find(profile.name);
+            GameObject characterObj = GetCachedGameObject(profile.name);
             if (characterObj == null)
             {
                 // Try to find prefab
@@ -46,6 +69,7 @@ namespace Milehigh.Core
                 {
                     characterObj = Instantiate(prefab, characterSpawnRoot);
                     characterObj.name = profile.name;
+                    objectCache[profile.name] = characterObj; // Cache newly created object
                 }
             }
 
@@ -69,7 +93,7 @@ namespace Milehigh.Core
 
         private void ApplyInteraction(ObjectInteraction interaction)
         {
-            GameObject target = GameObject.Find(interaction.objectId);
+            GameObject target = GetCachedGameObject(interaction.objectId);
             if (target != null)
             {
                 Debug.Log($"Applying {interaction.action} to {interaction.objectId}");
