@@ -184,6 +184,10 @@ public class Cinematic_IntoTheVoid : MonoBehaviour
         DialogueText.maxVisibleCharacters = 0;
         DialogueText.ForceMeshUpdate();
 
+        // BOLT: Typewriter effect optimized for performance.
+        // We use the existing GetWait(float) method to ensure zero-allocation yields,
+        // avoiding GC pressure during dialogue sequences.
+        for (int i = 0; i <= message.Length; i++)
         int totalVisibleCharacters = DialogueText.textInfo.characterCount;
 
         for (int i = 0; i <= totalVisibleCharacters; i++)
@@ -205,7 +209,6 @@ public class Cinematic_IntoTheVoid : MonoBehaviour
                 float delay = currentTypingSpeed;
 
                 // UX Enhancement: Rhythmic punctuation pauses for natural reading
-                // Note: Delay occurs *after* character reveal for natural rhythm.
                 if (c == '.' || c == '!' || c == '?') delay += 0.4f;
                 else if (c == ',' || c == ';' || c == ':') delay += 0.2f;
 
